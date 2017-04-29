@@ -265,6 +265,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				DEVELOPMENT_TEAM = A2HWYY7C6J;
 				INFOPLIST_FILE = BUFFBeacon/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = orkunsoylu.BUFFBeacon;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -278,6 +279,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				DEVELOPMENT_TEAM = A2HWYY7C6J;
 				INFOPLIST_FILE = BUFFBeacon/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = orkunsoylu.BUFFBeacon;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -304,6 +306,7 @@
 				309F6F381E8D518A00F8DAF1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
