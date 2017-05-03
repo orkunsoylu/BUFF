@@ -42,8 +42,8 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>...</string>
+	<string>I need Location</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>...</string>
+	<string>I need Location</string>
 </dict>
 </plist>

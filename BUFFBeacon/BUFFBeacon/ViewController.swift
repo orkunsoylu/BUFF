@@ -26,8 +26,11 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        writeValueTimer()
         manager = CBCentralManager(delegate: self, queue: nil)
-
+        locationManager.requestAlwaysAuthorization()
+        locationManager.requestWhenInUseAuthorization()
+        
     }
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
@@ -38,16 +41,12 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
         }
     }
     
-    
-    
-    
     func centralManager(
         _ central: CBCentralManager,
         didDiscover peripheral: CBPeripheral,
         advertisementData: [String : Any],
         rssi RSSI: NSNumber) {
         if (peripheral.name == "BUFFBeacon" && (self.peripheralBLE == nil) || (self.peripheralBLE?.state == CBPeripheralState.disconnected)) {
-            print(peripheral.name!)
             self.peripheralBLE = peripheral
             central.connect(peripheral, options: nil)
         }
@@ -55,8 +54,7 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
     
     func centralManager(_
         central: CBCentralManager,
-        didConnect peripheral: CBPeripheral) {
-        print("conn")
+                        didConnect peripheral: CBPeripheral) {
         self.peripheralBLE?.delegate = self
         peripheral.discoverServices([serviceUUID])
         
@@ -102,95 +100,101 @@ class ViewController: UIViewController,CBCentralManagerDelegate,CBPeripheralDele
         central.scanForPeripherals(withServices: nil, options: nil)
     }
     
-    @IBAction func writeValue(_ sender :UIButton){
-        print("pressed")
-        if peripheralBLE != nil {
-            if characteristicBUFF != nil{
-                locationManager.delegate = self as CLLocationManagerDelegate
-                if(CLLocationManager.headingAvailable()){
-                    locationManager.headingFilter = 1
-                    locationManager.startUpdatingHeading()
-                }
+    var headingDataString : String?
+    var speed : Double?
+    
+    var speedArray = [Double?](repeating:nil,count:10)
+    var averageSpeedString : String!
+    var userSpeed : Double?
+    
+    func writeValue(){
+        if peripheralBLE != nil && characteristicBUFF != nil{
+        print("Connected to " + (peripheralBLE?.name)!)
+        locationManager.delegate = self as CLLocationManagerDelegate
+            locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+            if(CLLocationManager.headingAvailable() && CLLocationManager.locationServicesEnabled()){
+                locationManager.headingFilter = 1
+                locationManager.startUpdatingHeading()
+                locationManager.startUpdatingLocation()
+                //if speedArray[9] != nil {
+                    //let averageSpeed = determineAverageSpeed(tempSpeedArray: speedArray)
+                    //averageSpeedString = String(averageSpeed)
+                    if(headingDataString != nil && userSpeed != nil){
+                        let finalDataString :String?
+                        finalDataString = headingDataString! + "_" + String(describing: userSpeed) + "\n"
+                        self.peripheralBLE?.writeValue((finalDataString?.data(using: String.Encoding.utf8)!)!, for: characteristicBUFF!, type: CBCharacteristicWriteType.withoutResponse)
+                    }
+                    
+                //}
             }
         }
     }
+    func locationUpdate(){
+        locationManager.startUpdatingLocation()
+    }
     
-    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
-                    let headingDataString = String(newHeading.magneticHeading)
-                    self.peripheralBLE?.writeValue(headingDataString.data(using: String.Encoding.utf8)!, for: characteristicBUFF!, type: CBCharacteristicWriteType.withoutResponse)
+    
+    func determineAverageSpeed(tempSpeedArray : [Double?]) -> Double{
+        var count = 0.0
+        var totalToAverage = 0.0
         
+        for i in 0...tempSpeedArray.count-1{
+            if tempSpeedArray[i]! < 7.0 && tempSpeedArray[i]! >= 0 {
+                totalToAverage += tempSpeedArray[i]!
+                count += 1
             }
+        }
+        speed = totalToAverage/count
+        print("Average Speed : " + String(describing: speed))
+        return speed!
+    }
     
-//    //Bluetooth Methods
-//    
-//    var data : NSDictionary?
-//    
-//    
-//    
-//    
-//    func setRegion(majorValue : Double,minorValue : Double){
-//        self.region = CLBeaconRegion(proximityUUID: UUID.init(uuidString: "E2538291-9359-9384-D58D-5020F77905CB")!, major: CLBeaconMajorValue(majorValue), minor: CLBeaconMinorValue(minorValue), identifier: "keh")
-//        self.data = self.region?.peripheralData(withMeasuredPower: nil)
-//        self.manager = CBPeripheralManager(delegate: self, queue: nil, options: nil)
-//
-//    }
-//    
-//    //-------------------------
-//    
-//    //Distance and Heading Methods
-//    
-//    var locationManager = CLLocationManager()
-//    
-//    var finalDistanceValue : Double?
-//    
-//    var initialLocation : CLLocation? = nil
-//
-//    var headingValue : Double? = nil
-//
-//    func determineMyCurrentLocation() {
-//        locationManager.delegate = self as CLLocationManagerDelegate
-//        locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-//        
-//        if (CLLocationManager.locationServicesEnabled() && CLLocationManager.headingAvailable()){
-//            locationManager.startUpdatingLocation()
-//            locationManager.headingFilter = 1
-//            locationManager.startUpdatingHeading()
-//        }
-//        
-//    }
-//    
-//    //Heading
-//    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
-//            headingValue = 360 + newHeading.magneticHeading
-//        
-//            label.text = label.text! + "finalHeadingValue:"
-//            label.text = label.text! + String(describing: headingValue!)
-//            label.text = label.text! + "\n"
-//        
-//            print("finalHeadingValue:")
-//            print(headingValue ?? "default")
-//    }
-//    
-//    
-//    //Distance
-//    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-//        let userLocation : CLLocation = locations[0] as CLLocation!
-//        
-//        if(initialLocation == nil){
-//            initialLocation=userLocation
-//        } else{
-//            finalDistanceValue = userLocation.distance(from: initialLocation!) * 1000
-//            if(finalDistanceValue != nil && headingValue != nil){
-//                setRegion(majorValue: finalDistanceValue!, minorValue: headingValue!)
-//            }
-//            label.text = label.text! + "finalDistanceValue:"
-//            label.text = label.text! + String(describing: finalDistanceValue!)
-//            label.text = label.text! + "\n"
-//            
-//            print("finalDistanceValue:")
-//            print(finalDistanceValue ?? "default")
-//
-//        }
-//    }
+    
+    
+    //Heading Update
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+            headingDataString = String(newHeading.magneticHeading)
+            print("didUpdateHeading" + headingDataString!)
+        
+    }
+    
+    //Location Update
+    var index = 0
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let userLocation : CLLocation = locations[0] as CLLocation!
+        if userLocation.timestamp .timeIntervalSinceNow > -10.0 {
+            userSpeed = Double(userLocation.speed)
+            if index < 10 {
+                print("didUpdateLocation array not full" + String(index))
+                speedArray[index] = userSpeed
+                index += 1
+            } else{
+                var i = 1
+                while i<10 {
+                    speedArray[i-1] = speedArray[i]
+                    if i == 9 {
+                        speedArray[i] = userSpeed
+                    }
+                    i += 1
+                }
+                print("didUpdateLocation array full" + String(describing: userSpeed))
+            }
+
+        }
+        
+    }
+    
+    
+    //Timer Functions
+    var timer1 = Timer()
+    var timer2 = Timer()
+    func writeValueTimer(){
+        timer1 = Timer.scheduledTimer(timeInterval: 1, target: self, selector: #selector(self.writeValue), userInfo: nil, repeats: true)
+    }
+    
+    func locationUpdateTimer(){
+        timer2 = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(self.locationUpdate), userInfo: nil, repeats: true)
+    }
 }
 
