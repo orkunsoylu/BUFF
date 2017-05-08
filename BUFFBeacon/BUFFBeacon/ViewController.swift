@@ -113,28 +113,32 @@ func centralManager(
     _ central: CBCentralManager,
     didDisconnectPeripheral peripheral: CBPeripheral,
     error: Error?) {
-    central.scanForPeripherals(withServices: nil, options: nil)
+    central.scanForPeripherals(withServices: [serviceUUID], options: nil)
     connectionStatusLabel.text = "Searching for Device..."
 }
 
 
-//    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-//
-//        if let dataBytes = characteristic.value {
-//            let backToString = String(data: dataBytes, encoding: String.Encoding.utf8) as String!
-//            print(dataBytes)
-//            print(backToString!)
-//            messageLabel.text = messageLabel.text + "\n"
-//            messageLabel.text = messageLabel.text + backToString!
-//        }
-//    }
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+
+        if let dataBytes = characteristic.value {
+            let backToString = String(data: dataBytes, encoding: String.Encoding.utf8) as String!
+            print(dataBytes)
+            print(backToString!)
+            messageLabel.text = backToString!
+        }
+    }
 
 
-
+    var rssi : Double?
 
 func writeValue(){
     if peripheralBLE != nil && characteristicBUFF != nil{
-        //peripheralBLE?.readRSSI()
+        peripheralBLE?.readRSSI()
+        if rssi != nil{
+        if rssi! < -90.0 {
+            currentRSSILabel.text = "Too far away from BUFF"
+        }
+        }
         locationManager.delegate = self as CLLocationManagerDelegate
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         if(CLLocationManager.headingAvailable() && CLLocationManager.locationServicesEnabled()){
@@ -153,7 +157,7 @@ func writeValue(){
                     isStopped = "moving"
                 }
                 let finalDataString :String?
-                finalDataString = headingDataString! + "_" + String(describing: userSpeed!) + "/" + isStopped! + "\n"
+                finalDataString = headingDataString! + "_" + String(describing: userSpeed!) + "&" + isStopped! + "%"
                 self.peripheralBLE?.writeValue((finalDataString?.data(using: String.Encoding.utf8)!)!, for: characteristicBUFF!, type: CBCharacteristicWriteType.withoutResponse)
                 
             }
@@ -163,9 +167,11 @@ func writeValue(){
     }
 }
 
-
+    
 func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
-    currentRSSILabel.text = String(describing:RSSI)
+      currentRSSILabel.text = String(describing:RSSI)
+    rssi = RSSI as! Double
+    
 }
 //Heading Update
 func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
