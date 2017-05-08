@@ -106,6 +106,7 @@ if(d==0){
   Serial.print("DistanceLeft: ");
   Serial.println(distanceLeft);
 
+//düz takip
 if((distanceRight>30) && (distanceLeft>30) && (servoMain.read() == 90)){
 
   finalHead = -1000;
@@ -119,7 +120,7 @@ digitalWrite(12,HIGH);
 analogWrite(6,180);
 analogWrite(5,180);
 
-    
+    //obstacle'ı takip ediyor
     }else if((distanceRight<30) && (distanceLeft>30) && (servoMain.read() == 0)){
 
       digitalWrite(8,LOW);
@@ -130,7 +131,7 @@ digitalWrite(12,HIGH);
 analogWrite(6,180);
 analogWrite(5,180);
       
-      
+      //obstacle atlatıldı
       }else if((distanceLeft > 30) && (distanceRight > 30) && (servoMain.read() == 0)){
 
 
@@ -172,7 +173,7 @@ analogWrite(5,0);
   if(initHead < 0) initHead+=360;
   initHead=360-initHead; // N=0/360, E=90, S=180, W=270
 
-    initHead = initHead + 41;  // *DÖNÜŞ İÇİN
+    initHead = initHead + 82;  // *DÖNÜŞ İÇİN
   if(initHead < 0){
     initHead += 360;
     }                             // *DÖNÜŞ İÇİN
@@ -222,7 +223,7 @@ analogWrite(5,0);
  delay(2000);
 
   
-      
+      //obstacle gördü
       }else if ((distanceRight<30) && (distanceLeft<30)){
 
 
@@ -247,7 +248,7 @@ analogWrite(5,0);
   if(heading2ilk < 0) heading2ilk+=360;
   heading2ilk=360-heading2ilk; // N=0/360, E=90, S=180, W=270
 
-  heading2ilk = heading2ilk - 41;  // *DÖNÜŞ İÇİN
+  heading2ilk = heading2ilk - 82;  // *DÖNÜŞ İÇİN
   if(heading2ilk < 0){
     heading2ilk += 360;
     }                             // *DÖNÜŞ İÇİN
@@ -307,5 +308,6 @@ analogWrite(5,180);
     
     }
   }
+
 
 

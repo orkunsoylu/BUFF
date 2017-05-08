@@ -1,4 +1,8 @@
 
+#include <Servo.h>
+
+Servo servoMain; // Define our Servo
+
 int d = 2;
 
 
@@ -44,6 +48,10 @@ void setup() {
 
   pinMode(leftTrigPin,OUTPUT);
   pinMode(leftEchoPin,INPUT);
+
+  
+   servoMain.attach(15); // servo on digital pin 10
+   servoMain.write(90);
   
   
     Serial.begin(9600);
@@ -119,7 +127,27 @@ analogWrite(6,0);
 analogWrite(5,0);
   
   
-  }
+  }else if((distanceLeft <30) && (distanceRight > 60)){
+    
+digitalWrite(8,LOW);
+digitalWrite(7,HIGH);
+digitalWrite(13,LOW);
+digitalWrite(12,HIGH);
+
+analogWrite(6,0);
+analogWrite(5,180);
+    
+    }else if((distanceLeft > 60) && (distanceRight < 30)){
+    
+digitalWrite(8,LOW);
+digitalWrite(7,HIGH);
+digitalWrite(13,LOW);
+digitalWrite(12,HIGH);
+
+analogWrite(6,180);
+analogWrite(5,0);
+    
+    }
 
 
 
