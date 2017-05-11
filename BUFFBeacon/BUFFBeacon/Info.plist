@@ -24,6 +24,8 @@
 	<string>I need Location</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>I need Location</string>
+	<key>NSMotionUsageDescription</key>
+	<string>asasasas</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

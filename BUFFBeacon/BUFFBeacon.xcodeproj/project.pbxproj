@@ -40,6 +40,7 @@
 			children = (
 				309F6F261E8D518A00F8DAF1 /* BUFFBeacon */,
 				309F6F251E8D518A00F8DAF1 /* Products */,
+				30E0ABD51EC4C7FF00BC8F9E /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -62,6 +63,13 @@
 				309F6F331E8D518A00F8DAF1 /* Info.plist */,
 			);
 			path = BUFFBeacon;
+			sourceTree = "<group>";
+		};
+		30E0ABD51EC4C7FF00BC8F9E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -101,6 +109,9 @@
 						SystemCapabilities = {
 							com.apple.BackgroundModes = {
 								enabled = 1;
+							};
+							com.apple.HealthKit = {
+								enabled = 0;
 							};
 						};
 					};
