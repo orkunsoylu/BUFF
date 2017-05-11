@@ -39,6 +39,11 @@ int x,y,z; //triple axis data
 int sensorDistance = 50;
 int lowerLimitDistance = 30; 
 
+boolean isInRecovery = false;
+boolean avoidedFromLeft = false;
+long avoidStartTime = 0;
+long elapsedTime = 0;
+
 void setup() {
   // right motor pin assignments
 
@@ -98,17 +103,11 @@ if(d == 0){
     durationRight = pulseIn(rightEchoPin,HIGH);
     distanceRight = durationRight * 0.034029/2;
 
-    //Serial.print("DistanceRight: ");
-    //Serial.println(distanceRight);
-
     digitalWrite(leftTrigPin,HIGH);
     delayMicroseconds(10);
     digitalWrite(leftTrigPin,LOW);
     durationLeft = pulseIn(leftEchoPin,HIGH);
     distanceLeft = durationLeft * 0.034029/2;
-   
-    //Serial.print("DistanceLeft: ");
-    //Serial.println(distanceLeft);
 
     String input = mySerial.readStringUntil('%');
     int firstDelimIndex = input.indexOf('_');
@@ -150,7 +149,7 @@ if(d == 0){
       }
     }
   // State 1 : Follow
-  if (servoMain.read() == 90){
+  if ((servoMain.read() == 90) && (!isInRecovery)){
 
     servoMain.detach(); // servo on digital pin 15
     
@@ -239,7 +238,7 @@ for (int k=9 ; k>0; k--){
 
 //sağa dönmüş
   if(directionIndicator > 0){
-
+  avoidedFromLeft = false;
 //Tell the HMC5883 where to begin reading data
        Wire.beginTransmission(address);
        Wire.write(0x03); //select register 3, X MSB register
@@ -313,7 +312,7 @@ for (int k=9 ; k>0; k--){
         // servo on digital pin 15
     
     }else if(directionIndicator<0){
-
+avoidedFromLeft = true;
       //Tell the HMC5883 where to begin reading data
        Wire.beginTransmission(address);
        Wire.write(0x03); //select register 3, X MSB register
@@ -388,7 +387,9 @@ for (int k=9 ; k>0; k--){
     }
   }
   // State 2 : Avoid Obstacle
-  if ((servoMain.read() == 0) || (servoMain.read() == 180)){
+  if (((servoMain.read() == 0) || (servoMain.read() == 180)) && (!isInRecovery)){
+
+    avoidStartTime = millis();
 
    servoMain.detach(); // servo on digital pin 15
 
@@ -405,7 +406,8 @@ for (int k=9 ; k>0; k--){
       analogWrite(5,180);
     } else if((distanceLeft>sensorDistance) && (distanceRight>sensorDistance) && (servoMain.read()==0)){
       mySerial.write("Avoided Obstacle");
-      
+      elapsedTime = millis() - avoidStartTime;
+      isInRecovery = true;
       finalHead = -1000;
       heading2son = 1000;
 
@@ -495,7 +497,8 @@ for (int k=9 ; k>0; k--){
 
     else if((distanceLeft>sensorDistance) && (distanceRight>sensorDistance) && (servoMain.read()==180)){
       mySerial.write("Avoided Obstacle");
-      
+      elapsedTime = millis() - avoidStartTime;
+      isInRecovery = true;
       finalHead = -1000;
       heading2son = 1000;
 
@@ -584,6 +587,180 @@ delay(2000);
       }
   }     
   // State 3 : Recover
+  else if((servoMain.read() == 90) && isInRecovery){
+    isInRecovery = false;
+
+    if(avoidedFromLeft){
+      servoMain.attach(15);
+      servoMain.write(0);
+      servoMain.detach();
+
+      digitalWrite(8,LOW);
+      digitalWrite(7,HIGH);
+      digitalWrite(13,LOW);
+      digitalWrite(12,HIGH);
+
+      analogWrite(6,180);
+      analogWrite(5,180);
+
+      if((distanceLeft > sensorDistance) && (distanceRight > sensorDistance)){
+        //Tell the HMC5883 where to begin reading data
+       Wire.beginTransmission(address);
+       Wire.write(0x03); //select register 3, X MSB register
+       Wire.endTransmission();
+       
+       //Read data from each axis, 2 registers per axis
+       Wire.requestFrom(address, 6);
+       if(6<=Wire.available()){
+          x = Wire.read()<<8; //X msb
+          x |= Wire.read(); //X lsb
+          z = Wire.read()<<8; //Z msb
+          z |= Wire.read(); //Z lsb
+          y = Wire.read()<<8; //Y msb
+          y |= Wire.read(); //Y lsb
+       }
+
+       float heading2ilk=atan2(x, y)/0.0174532925;
+       if(heading2ilk < 0) heading2ilk+=360;
+       heading2ilk=360-heading2ilk; // N=0/360, E=90, S=180, W=270
+
+       heading2ilk = heading2ilk + 90;  // *DÖNÜŞ İÇİN
+       if(heading2ilk < 0){
+          heading2ilk += 360;
+       }                             // *DÖNÜŞ İÇİN
+
+       Serial.println("Heading ilk: ");
+       Serial.println(heading2ilk);
+
+      heading2son = -1000;
+
+       while(heading2son < heading2ilk){
+          digitalWrite(8,LOW);
+          digitalWrite(7,HIGH);
+          digitalWrite(13,LOW);
+          digitalWrite(12,HIGH);
+
+          analogWrite(6,180);
+          analogWrite(5,0);
+
+          //Tell the HMC5883 where to begin reading data
+          Wire.beginTransmission(address);
+          Wire.write(0x03); //select register 3, X MSB register
+          Wire.endTransmission();
+          
+          //Read data from each axis, 2 registers per axis
+          Wire.requestFrom(address, 6);
+          if(6<=Wire.available()){
+            x = Wire.read()<<8; //X msb
+            x |= Wire.read(); //X lsb
+            z = Wire.read()<<8; //Z msb
+            z |= Wire.read(); //Z lsb
+            y = Wire.read()<<8; //Y msb
+            y |= Wire.read(); //Y lsb
+          }
+
+          heading2son=atan2(x, y)/0.0174532925;
+          if(heading2son < 0) heading2son+=360;
+          heading2son=360-heading2son; // N=0/360, E=90, S=180, W=270
+
+          Serial.println("Heading son: ");
+          Serial.println(heading2son);
+        }
+      
+        analogWrite(6,0);
+        analogWrite(5,0); 
+        servoMain.attach(15); // servo on digital pin 15
+        servoMain.write(90);
+        delay(500);
+        servoMain.detach();
+
+ 
+       digitalWrite(8,LOW);
+      digitalWrite(7,HIGH);
+      digitalWrite(13,LOW);
+      digitalWrite(12,HIGH);
+
+      analogWrite(6,180);
+      analogWrite(5,180);
+
+     delay(elapsedTime);
+
+      analogWrite(6,0);
+      analogWrite(5,0);
+
+      
+
+      //Tell the HMC5883 where to begin reading data
+       Wire.beginTransmission(address);
+       Wire.write(0x03); //select register 3, X MSB register
+       Wire.endTransmission();
+       
+       //Read data from each axis, 2 registers per axis
+       Wire.requestFrom(address, 6);
+       if(6<=Wire.available()){
+          x = Wire.read()<<8; //X msb
+          x |= Wire.read(); //X lsb
+          z = Wire.read()<<8; //Z msb
+          z |= Wire.read(); //Z lsb
+          y = Wire.read()<<8; //Y msb
+          y |= Wire.read(); //Y lsb
+       }
+
+       float heading2ilk=atan2(x, y)/0.0174532925;
+       if(heading2ilk < 0) heading2ilk+=360;
+       heading2ilk=360-heading2ilk; // N=0/360, E=90, S=180, W=270
+
+       heading2ilk = heading2ilk - 90;  // *DÖNÜŞ İÇİN
+       if(heading2ilk < 0){
+          heading2ilk += 360;
+       }                             // *DÖNÜŞ İÇİN
+
+       Serial.println("Heading ilk: ");
+       Serial.println(heading2ilk);
+
+       while(heading2son > heading2ilk){
+          digitalWrite(8,LOW);
+          digitalWrite(7,HIGH);
+          digitalWrite(13,LOW);
+          digitalWrite(12,HIGH);
+
+          analogWrite(6,0);
+          analogWrite(5,180);
+
+          //Tell the HMC5883 where to begin reading data
+          Wire.beginTransmission(address);
+          Wire.write(0x03); //select register 3, X MSB register
+          Wire.endTransmission();
+          
+          //Read data from each axis, 2 registers per axis
+          Wire.requestFrom(address, 6);
+          if(6<=Wire.available()){
+            x = Wire.read()<<8; //X msb
+            x |= Wire.read(); //X lsb
+            z = Wire.read()<<8; //Z msb
+            z |= Wire.read(); //Z lsb
+            y = Wire.read()<<8; //Y msb
+            y |= Wire.read(); //Y lsb
+          }
+
+          heading2son=atan2(x, y)/0.0174532925;
+          if(heading2son < 0) heading2son+=360;
+          heading2son=360-heading2son; // N=0/360, E=90, S=180, W=270
+
+          Serial.println("Heading son: ");
+          Serial.println(heading2son);
+        }
+      
+        
+        analogWrite(6,0);
+        analogWrite(5,0); 
+      
+      }
+    }else{
+      
+    }
+    
+  }
 } else {
   analogWrite(6,0);
   analogWrite(5,0);
