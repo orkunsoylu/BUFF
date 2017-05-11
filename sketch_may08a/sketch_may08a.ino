@@ -19,6 +19,7 @@ String dataFromPhone="";
 String phoneHeadingArray[10];
 String phoneSpeedArray[10];
 String phoneStatus = "";
+float directionIndicator = 0;
 
 //left sensor signal pin assignments
 int leftTrigPin = 3;
@@ -36,7 +37,7 @@ int distanceRight;
 int x,y,z; //triple axis data
 
 int sensorDistance = 50;
-int lowerLimitDistance = 20; 
+int lowerLimitDistance = 30; 
 
 void setup() {
   // right motor pin assignments
@@ -71,6 +72,7 @@ void setup() {
   servoMain.attach(15); // servo on digital pin 15
   servoMain.write(90);
   
+
   Serial.begin(9600);
   mySerial.begin(9600);
   Wire.begin();
@@ -108,27 +110,33 @@ if(d == 0){
     //Serial.print("DistanceLeft: ");
     //Serial.println(distanceLeft);
 
-    String inout = mySerial.readStringUntil('%');
+    String input = mySerial.readStringUntil('%');
     int firstDelimIndex = input.indexOf('_');
     int lastDelimIndex = input.indexOf('&');
     String phoneHeading = input.substring(0,firstDelimIndex);
     String phoneSpeed = input.substring(firstDelimIndex+1,lastDelimIndex);
     phoneStatus = input.substring(lastDelimIndex+1,input.length());
 
-    Serial.println(phoneHeading);
-    Serial.println(phoneSpeed);
-    Serial.println(phoneStatus);
+    //Serial.println(phoneHeading);
+    //Serial.println(phoneSpeed);
+    //Serial.println(phoneStatus);
     
     if((phoneHeadingArray[9] != NULL) && (phoneSpeedArray[9] != NULL)){
         //Shift to left by one and add latest entry to end 
         for(int j = 1; j<10;j++){
           
-          phoneHeadingArray[j-1] = phoneHeading[j];
-          phoneSpeedArray[j-1] = phoneSpeed[j];  
+          phoneHeadingArray[j-1] = phoneHeadingArray[j];
+          phoneSpeedArray[j-1] = phoneSpeedArray[j]; 
+
+    //Serial.println(phoneHeadingArray[j]);
+    //Serial.println(phoneSpeedArray[j]);
+
+          
           }
 
         phoneHeadingArray[9] = phoneHeading;
         phoneSpeedArray[9] = phoneSpeed;
+        
       }else{
 
         for(int i = 0; i<10;i++){
@@ -143,10 +151,13 @@ if(d == 0){
     }
   // State 1 : Follow
   if (servoMain.read() == 90){
-    mySerial.write("Following User");
+
+    servoMain.detach(); // servo on digital pin 15
     
     if((distanceRight > sensorDistance) && (distanceLeft > sensorDistance)){
       // Follow Straight
+      mySerial.write("Following User");
+      
       finalHead = -1000;
       heading2son = 1000;
 
@@ -159,6 +170,8 @@ if(d == 0){
       analogWrite(5,180);
     } else if((distanceRight > 2 * sensorDistance) && (distanceLeft < sensorDistance)){
       //Turn Left
+      mySerial.write("Following User");
+      
       digitalWrite(8,LOW);
       digitalWrite(7,HIGH);
       digitalWrite(13,LOW);
@@ -168,6 +181,8 @@ if(d == 0){
       analogWrite(5,180);
     } else if((distanceRight < sensorDistance) && (distanceLeft > 2 * sensorDistance)){
       //Turn Right
+      mySerial.write("Following User");
+      
       digitalWrite(8,LOW);
       digitalWrite(7,HIGH);
       digitalWrite(13,LOW);
@@ -177,29 +192,129 @@ if(d == 0){
       analogWrite(5,0);
     } else if((distanceRight < lowerLimitDistance) && (distanceLeft < lowerLimitDistance)){
       //Move Back
+      mySerial.write("Following User");
+      
       digitalWrite(8,HIGH);
       digitalWrite(7,LOW);
       digitalWrite(13,HIGH);
       digitalWrite(12,LOW);
 
-      analogWrite(6,150);
-      analogWrite(5,150);
+      analogWrite(6,120);
+      analogWrite(5,120);
     } else if((distanceRight > lowerLimitDistance) && (distanceRight < sensorDistance) &&
               (distanceLeft > lowerLimitDistance) && (distanceLeft < sensorDistance) &&
-              (phoneStatus.equals("stopped")) {
+              (phoneStatus.equals("stopped"))) {
       //Stop at position
       mySerial.write("BUFF stopped w/ user");
-      
+
+      servoMain.attach(15);
       servoMain.write(90);
+      servoMain.detach();
       analogWrite(6,0);
       analogWrite(5,0);
     } else if((distanceRight > lowerLimitDistance) && (distanceRight < sensorDistance) &&
               (distanceLeft > lowerLimitDistance) && (distanceLeft < sensorDistance) &&
-              (phoneStatus.equals("moving")){
+              (phoneStatus.equals("moving"))){
        //Obstacle Ahead
        mySerial.write("Encountered Obstacle");
 
-       //Tell the HMC5883 where to begin reading data
+//sağa mı sola mı?
+
+delay(2000);
+
+for (int k=9 ; k>0; k--){
+
+  if(phoneHeadingArray[k] != NULL){
+
+      directionIndicator = phoneHeadingArray[k].toFloat() - phoneHeadingArray[k-1].toFloat();
+      Serial.println("reading");
+      Serial.println(phoneHeadingArray[k].toFloat());
+      Serial.println(phoneHeadingArray[k-1].toFloat());
+      Serial.println("\n");
+    break;
+    
+    }
+   
+  }
+
+//sağa dönmüş
+  if(directionIndicator > 0){
+
+//Tell the HMC5883 where to begin reading data
+       Wire.beginTransmission(address);
+       Wire.write(0x03); //select register 3, X MSB register
+       Wire.endTransmission();
+       
+       //Read data from each axis, 2 registers per axis
+       Wire.requestFrom(address, 6);
+       if(6<=Wire.available()){
+          x = Wire.read()<<8; //X msb
+          x |= Wire.read(); //X lsb
+          z = Wire.read()<<8; //Z msb
+          z |= Wire.read(); //Z lsb
+          y = Wire.read()<<8; //Y msb
+          y |= Wire.read(); //Y lsb
+       }
+
+       float heading2ilk=atan2(x, y)/0.0174532925;
+       if(heading2ilk < 0) heading2ilk+=360;
+       heading2ilk=360-heading2ilk; // N=0/360, E=90, S=180, W=270
+
+       heading2ilk = heading2ilk + 90;  // *DÖNÜŞ İÇİN
+       if(heading2ilk < 0){
+          heading2ilk += 360;
+       }                             // *DÖNÜŞ İÇİN
+
+       Serial.println("Heading ilk: ");
+       Serial.println(heading2ilk);
+
+      heading2son = -1000;
+
+       while(heading2son < heading2ilk){
+          digitalWrite(8,LOW);
+          digitalWrite(7,HIGH);
+          digitalWrite(13,LOW);
+          digitalWrite(12,HIGH);
+
+          analogWrite(6,180);
+          analogWrite(5,0);
+
+          //Tell the HMC5883 where to begin reading data
+          Wire.beginTransmission(address);
+          Wire.write(0x03); //select register 3, X MSB register
+          Wire.endTransmission();
+          
+          //Read data from each axis, 2 registers per axis
+          Wire.requestFrom(address, 6);
+          if(6<=Wire.available()){
+            x = Wire.read()<<8; //X msb
+            x |= Wire.read(); //X lsb
+            z = Wire.read()<<8; //Z msb
+            z |= Wire.read(); //Z lsb
+            y = Wire.read()<<8; //Y msb
+            y |= Wire.read(); //Y lsb
+          }
+
+          heading2son=atan2(x, y)/0.0174532925;
+          if(heading2son < 0) heading2son+=360;
+          heading2son=360-heading2son; // N=0/360, E=90, S=180, W=270
+
+          Serial.println("Heading son: ");
+          Serial.println(heading2son);
+        }
+      
+        analogWrite(6,0);
+        analogWrite(5,0); 
+        servoMain.attach(15); // servo on digital pin 15
+        servoMain.write(180);
+        delay(500);
+        servoMain.detach(); 
+        
+        // servo on digital pin 15
+    
+    }else if(directionIndicator<0){
+
+      //Tell the HMC5883 where to begin reading data
        Wire.beginTransmission(address);
        Wire.write(0x03); //select register 3, X MSB register
        Wire.endTransmission();
@@ -259,18 +374,28 @@ if(d == 0){
           Serial.println("Heading son: ");
           Serial.println(heading2son);
         }
-     
+      
+        servoMain.attach(15); // servo on digital pin 15
         servoMain.write(0);
-        analogWrite(6,0);
+         analogWrite(6,0);
         analogWrite(5,0); 
+        delay(500);
+        servoMain.detach(); // servo on digital pin 15
+      
+      }
+       
         delay(2000);
     }
   }
   // State 2 : Avoid Obstacle
-  if (servoMain.read() == 0){
-    mySerial.write("Avoiding Obstacle");
+  if ((servoMain.read() == 0) || (servoMain.read() == 180)){
+
+   servoMain.detach(); // servo on digital pin 15
+
 
     if((distanceRight < sensorDistance) && (distanceLeft > sensorDistance)){
+      mySerial.write("Avoiding Obstacle");
+      
       digitalWrite(8,LOW);
       digitalWrite(7,HIGH);
       digitalWrite(13,LOW);
@@ -278,7 +403,7 @@ if(d == 0){
 
       analogWrite(6,180);
       analogWrite(5,180);
-    } else if(){
+    } else if((distanceLeft>sensorDistance) && (distanceRight>sensorDistance) && (servoMain.read()==0)){
       mySerial.write("Avoided Obstacle");
       
       finalHead = -1000;
@@ -322,8 +447,8 @@ if(d == 0){
         initHead += 360;
       }                             // *DÖNÜŞ İÇİN
 
-      Serial.println("Heading ilk: ");
-      Serial.println(initHead);
+     // Serial.println("Heading ilk: ");
+     // Serial.println(initHead);
 
       while(finalHead < initHead){
           digitalWrite(8,LOW);
@@ -354,16 +479,110 @@ if(d == 0){
           if(finalHead < 0) finalHead+=360;
           finalHead=360-finalHead; // N=0/360, E=90, S=180, W=270
 
-          Serial.println("Heading son: ");
-          Serial.println(finalHead);
+       //   Serial.println("Heading son: ");
+        //  Serial.println(finalHead);
        }
-
+       
+       servoMain.attach(15); // servo on digital pin 15
        servoMain.write(90);
        analogWrite(6,0);
-       analogWrite(5,0); 
+       analogWrite(5,0);
+       delay(500);
+       servoMain.detach(); // servo on digital pin 15
+        
        delay(2000);
     }
-  }
+
+    else if((distanceLeft>sensorDistance) && (distanceRight>sensorDistance) && (servoMain.read()==180)){
+      mySerial.write("Avoided Obstacle");
+      
+      finalHead = -1000;
+      heading2son = 1000;
+
+      digitalWrite(8,LOW);
+      digitalWrite(7,HIGH);
+      digitalWrite(13,LOW);
+      digitalWrite(12,HIGH);
+
+      analogWrite(6,180);
+      analogWrite(5,180);
+
+      delay(500);
+
+      analogWrite(6,0);
+      analogWrite(5,0);
+
+      //Tell the HMC5883 where to begin reading data
+       Wire.beginTransmission(address);
+       Wire.write(0x03); //select register 3, X MSB register
+       Wire.endTransmission();
+       
+       //Read data from each axis, 2 registers per axis
+       Wire.requestFrom(address, 6);
+       if(6<=Wire.available()){
+          x = Wire.read()<<8; //X msb
+          x |= Wire.read(); //X lsb
+          z = Wire.read()<<8; //Z msb
+          z |= Wire.read(); //Z lsb
+          y = Wire.read()<<8; //Y msb
+          y |= Wire.read(); //Y lsb
+       }
+
+       float heading2ilk=atan2(x, y)/0.0174532925;
+       if(heading2ilk < 0) heading2ilk+=360;
+       heading2ilk=360-heading2ilk; // N=0/360, E=90, S=180, W=270
+
+       heading2ilk = heading2ilk - 90;  // *DÖNÜŞ İÇİN
+       if(heading2ilk < 0){
+          heading2ilk += 360;
+       }                             // *DÖNÜŞ İÇİN
+
+       Serial.println("Heading ilk: ");
+       Serial.println(heading2ilk);
+
+       while(heading2son > heading2ilk){
+          digitalWrite(8,LOW);
+          digitalWrite(7,HIGH);
+          digitalWrite(13,LOW);
+          digitalWrite(12,HIGH);
+
+          analogWrite(6,0);
+          analogWrite(5,180);
+
+          //Tell the HMC5883 where to begin reading data
+          Wire.beginTransmission(address);
+          Wire.write(0x03); //select register 3, X MSB register
+          Wire.endTransmission();
+          
+          //Read data from each axis, 2 registers per axis
+          Wire.requestFrom(address, 6);
+          if(6<=Wire.available()){
+            x = Wire.read()<<8; //X msb
+            x |= Wire.read(); //X lsb
+            z = Wire.read()<<8; //Z msb
+            z |= Wire.read(); //Z lsb
+            y = Wire.read()<<8; //Y msb
+            y |= Wire.read(); //Y lsb
+          }
+
+          heading2son=atan2(x, y)/0.0174532925;
+          if(heading2son < 0) heading2son+=360;
+          heading2son=360-heading2son; // N=0/360, E=90, S=180, W=270
+
+          Serial.println("Heading son: ");
+          Serial.println(heading2son);
+        }
+      
+        servoMain.attach(15); // servo on digital pin 15
+        servoMain.write(90);
+         analogWrite(6,0);
+        analogWrite(5,0); 
+        delay(500);
+        servoMain.detach(); // servo on digital pin 15
+delay(2000);
+      
+      }
+  }     
   // State 3 : Recover
 } else {
   analogWrite(6,0);
