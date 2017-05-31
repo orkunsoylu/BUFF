@@ -124,14 +124,13 @@ func centralManager(
     connectionStatusLabel.text = "Searching for Device..."
 }
 
-
+    var backToString : String?
 func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
     
     if let dataBytes = characteristic.value {
-        let backToString = String(data: dataBytes, encoding: String.Encoding.utf8) as String!
-        print(dataBytes)
+        backToString = String(data: dataBytes, encoding: String.Encoding.utf8) as String!
         print(backToString!)
-        messageLabel.text = backToString!
+        messageLabel.text = messageLabel.text + backToString!
     }
 }
 
@@ -159,11 +158,12 @@ func writeValue(){
                 }
                 
             })
-        }
+            currentSpeedLabel.text = isStopped
+        
         if(headingDataString != nil && userSpeed != nil && isStopped != nil){
             currentHeadingLabel.text = headingDataString!
             if userSpeed >= 0.0 && userSpeed <= 7.0{
-                currentSpeedLabel.text = String(userSpeed)
+                //currentSpeedLabel.text = String(userSpeed)
             }
             
             let finalDataString :String?
@@ -171,7 +171,7 @@ func writeValue(){
             self.peripheralBLE?.writeValue((finalDataString?.data(using: String.Encoding.utf8)!)!, for: characteristicBUFF!, type: CBCharacteristicWriteType.withoutResponse)
             
         }
-        
+        }
         
     }
 }
